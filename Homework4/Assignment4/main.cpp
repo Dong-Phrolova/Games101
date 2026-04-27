@@ -52,10 +52,32 @@ void bezier(const std::vector<cv::Point2f> &control_points, cv::Mat &window)
 {
     // TODO: Iterate through all t = 0 to t = 1 with small steps, and call de Casteljau's 
     // recursive Bezier algorithm.
-	for (double t = 0.0; t <= 1.0; t += 0.001)
+	//第一种利用双线性插值思想，对于邻居四个点，面积作为权值进行抗锯齿处理
+    //第二种利用距离权重进行抗锯齿处理，可扩展性强
+    for (double t = 0.0; t <= 1.0; t += 0.001)
     {
-        cv::Point2f point = recursive_bezier(control_points, t);
-        window.at<cv::Vec3b>(point.y, point.x)[1] = 255;
+        auto point = recursive_bezier(control_points, t);
+        //判断邻居四个点的位置，找到左上角的点
+        int x_int = static_cast<int>(floor(point.x));
+        int y_int = static_cast<int>(floor(point.y));
+        float x_frac = point.x - x_int;
+        float y_frac = point.y - y_int;
+
+        int x0 = x_frac < 0.5f ? x_int - 1 : x_int;
+        int y0 = y_frac < 0.5f ? y_int - 1 : y_int;
+
+        for (int i = 0; i <= 1; i++) {
+            for (int j = 0; j <= 1; j++) {
+                float dx = abs(point.x - x0 - i - 0.5f);
+                float dy = abs(point.y - y0 - j - 0.5f);
+                float distance_square = dx * dx + dy * dy;
+
+                float weight = 1 - distance_square / 2.0f;
+
+                float color = window.at<cv::Vec3b>(y0 + j, x0 + i)[1];//获取上一次的颜色
+                window.at<cv::Vec3b>(y0 + j, x0 + i)[1] = std::max(255.0f * weight, color);//更新为最大值，防止被覆盖
+            }
+        }
     }
 }
 
