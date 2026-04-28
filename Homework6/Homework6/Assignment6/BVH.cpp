@@ -24,7 +24,76 @@ BVHAccel::BVHAccel(std::vector<Object*> p, int maxPrimsInNode,
         "\rBVH Generation complete: \nTime Taken: %i hrs, %i mins, %i secs\n\n",
         hrs, mins, secs);
 }
+//类似线段树build,传入一些物体
+//BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
+//{
+//    BVHBuildNode* node = new BVHBuildNode();
+//
+//    // Compute bounds of all primitives in BVH node
+//    Bounds3 bounds;
+//    for (int i = 0; i < objects.size(); ++i)
+//        bounds = Union(bounds, objects[i]->getBounds());
+//    if (objects.size() == 1) {
+//        // Create leaf _BVHBuildNode_
+//        node->bounds = objects[0]->getBounds();
+//        node->object = objects[0];
+//        node->left = nullptr;
+//        node->right = nullptr;
+//        return node;
+//    }
+//    else if (objects.size() == 2) {
+//        node->left = recursiveBuild(std::vector{objects[0]});
+//        node->right = recursiveBuild(std::vector{objects[1]});
+//
+//        node->bounds = Union(node->left->bounds, node->right->bounds);
+//        return node;
+//    }
+//    else {
+//        Bounds3 centroidBounds;//重心包围盒
+//        for (int i = 0; i < objects.size(); ++i)
+//            centroidBounds =
+//                Union(centroidBounds, objects[i]->getBounds().Centroid());
+//		int dim = centroidBounds.maxExtent();//最长的轴
+//        switch (dim) {
+//        case 0:
+//            std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
+//                return f1->getBounds().Centroid().x <
+//                       f2->getBounds().Centroid().x;
+//            });
+//            break;
+//        case 1:
+//            std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
+//                return f1->getBounds().Centroid().y <
+//                       f2->getBounds().Centroid().y;
+//            });
+//            break;
+//        case 2:
+//            std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
+//                return f1->getBounds().Centroid().z <
+//                       f2->getBounds().Centroid().z;
+//            });
+//            break;
+//        }
+//
+//        auto beginning = objects.begin();
+//        auto middling = objects.begin() + (objects.size() / 2);
+//        auto ending = objects.end();
+//
+//        auto leftshapes = std::vector<Object*>(beginning, middling);
+//        auto rightshapes = std::vector<Object*>(middling, ending);
+//
+//        assert(objects.size() == (leftshapes.size() + rightshapes.size()));
+//
+//        node->left = recursiveBuild(leftshapes);
+//        node->right = recursiveBuild(rightshapes);
+//
+//        node->bounds = Union(node->left->bounds, node->right->bounds);
+//    }
+//
+//    return node;
+//}
 
+//SAH，利用面积，桶，进行划分，减少树的深度，明天再说
 BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
 {
     BVHBuildNode* node = new BVHBuildNode();
@@ -42,36 +111,36 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
         return node;
     }
     else if (objects.size() == 2) {
-        node->left = recursiveBuild(std::vector{objects[0]});
-        node->right = recursiveBuild(std::vector{objects[1]});
+        node->left = recursiveBuild(std::vector{ objects[0] });
+        node->right = recursiveBuild(std::vector{ objects[1] });
 
         node->bounds = Union(node->left->bounds, node->right->bounds);
         return node;
     }
     else {
-        Bounds3 centroidBounds;
+        Bounds3 centroidBounds;//重心包围盒
         for (int i = 0; i < objects.size(); ++i)
             centroidBounds =
-                Union(centroidBounds, objects[i]->getBounds().Centroid());
-        int dim = centroidBounds.maxExtent();
+            Union(centroidBounds, objects[i]->getBounds().Centroid());
+        int dim = centroidBounds.maxExtent();//最长的轴
         switch (dim) {
         case 0:
             std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
                 return f1->getBounds().Centroid().x <
-                       f2->getBounds().Centroid().x;
-            });
+                    f2->getBounds().Centroid().x;
+                });
             break;
         case 1:
             std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
                 return f1->getBounds().Centroid().y <
-                       f2->getBounds().Centroid().y;
-            });
+                    f2->getBounds().Centroid().y;
+                });
             break;
         case 2:
             std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
                 return f1->getBounds().Centroid().z <
-                       f2->getBounds().Centroid().z;
-            });
+                    f2->getBounds().Centroid().z;
+                });
             break;
         }
 
@@ -93,6 +162,7 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
     return node;
 }
 
+
 Intersection BVHAccel::Intersect(const Ray& ray) const
 {
     Intersection isect;
@@ -105,5 +175,19 @@ Intersection BVHAccel::Intersect(const Ray& ray) const
 Intersection BVHAccel::getIntersection(BVHBuildNode* node, const Ray& ray) const
 {
     // TODO Traverse the BVH to find intersection
+    Intersection isect;
+    std::array<int,3> dirIsNeg = {ray.direction_inv.x >0, ray.direction_inv.y > 0,
+								  ray.direction_inv.z > 0 };
+    //没有交点
+    if(!node->bounds.IntersectP(ray,ray.direction_inv,dirIsNeg))
+		return isect;
+    //到达叶子
+    if (node->left == nullptr && node->right == nullptr) {
+        return node->object->getIntersection(ray);
+    }
+    //递归两边
+    Intersection hitLeft = getIntersection(node->left, ray);
+    Intersection hitRight = getIntersection(node->right, ray);
 
+    return hitLeft.distance < hitRight.distance ? hitLeft : hitRight;
 }
