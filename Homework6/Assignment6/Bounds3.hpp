@@ -1,7 +1,3 @@
-//
-// Created by LEI XU on 5/16/19.
-//
-
 #ifndef RAYTRACING_BOUNDS3_H
 #define RAYTRACING_BOUNDS3_H
 #include "Ray.hpp"
@@ -11,8 +7,8 @@
 
 class Bounds3
 {
-  public:
-    Vector3f pMin, pMax; // two points to specify the bounding box
+public:
+    Vector3f pMin, pMax;
     Bounds3()
     {
         double minNum = std::numeric_limits<double>::lowest();
@@ -49,9 +45,9 @@ class Bounds3
     Bounds3 Intersect(const Bounds3& b)
     {
         return Bounds3(Vector3f(fmax(pMin.x, b.pMin.x), fmax(pMin.y, b.pMin.y),
-                                fmax(pMin.z, b.pMin.z)),
-                       Vector3f(fmin(pMax.x, b.pMax.x), fmin(pMax.y, b.pMax.y),
-                                fmin(pMax.z, b.pMax.z)));
+            fmax(pMin.z, b.pMin.z)),
+            Vector3f(fmin(pMax.x, b.pMax.x), fmin(pMax.y, b.pMax.y),
+                fmin(pMax.z, b.pMax.z)));
     }
 
     Vector3f Offset(const Vector3f& p) const
@@ -77,44 +73,33 @@ class Bounds3
     bool Inside(const Vector3f& p, const Bounds3& b)
     {
         return (p.x >= b.pMin.x && p.x <= b.pMax.x && p.y >= b.pMin.y &&
-                p.y <= b.pMax.y && p.z >= b.pMin.z && p.z <= b.pMax.z);
+            p.y <= b.pMax.y && p.z >= b.pMin.z && p.z <= b.pMax.z);
     }
     inline const Vector3f& operator[](int i) const
     {
         return (i == 0) ? pMin : pMax;
     }
 
-    inline bool IntersectP(const Ray& ray, const Vector3f& invDir,
-                           const std::array<int, 3>& dirisNeg) const;
+    inline bool IntersectP(const Ray& ray, const Vector3f& invDir, const std::array<int, 3>& dirIsNeg) const;
 };
 
-
-//盒子和光线求交
-inline bool Bounds3::IntersectP(const Ray& ray, const Vector3f& invDir,
-                                const std::array<int, 3>& dirIsNeg) const
+inline bool Bounds3::IntersectP(const Ray& ray, const Vector3f& invDir, const std::array<int, 3>& dirIsNeg) const
 {
-    // invDir: ray direction(x,y,z), invDir=(1.0/x,1.0/y,1.0/z), use this because Multiply is faster that Division
-    // dirIsNeg: ray direction(x,y,z), dirIsNeg=[int(x>0),int(y>0),int(z>0)], use this to simplify your logic
-    // TODO test if ray bound intersects
-
-    //分别计算每个方向上进入和离开平面的时间
     float x_t_min = (pMin.x - ray.origin.x) * invDir.x;
     float x_t_max = (pMax.x - ray.origin.x) * invDir.x;
     float y_t_min = (pMin.y - ray.origin.y) * invDir.y;
     float y_t_max = (pMax.y - ray.origin.y) * invDir.y;
     float z_t_min = (pMin.z - ray.origin.z) * invDir.z;
     float z_t_max = (pMax.z - ray.origin.z) * invDir.z;
-    //根据光线方向,确定时间大小
+
     if (!dirIsNeg[0]) std::swap(x_t_min, x_t_max);
     if (!dirIsNeg[1]) std::swap(y_t_min, y_t_max);
     if (!dirIsNeg[2]) std::swap(z_t_min, z_t_max);
-    //三个方向时间求交
+
     float t_in = std::max(x_t_min, std::max(y_t_min, z_t_min));
-    float t_out = std::min(x_t_max, std::min(y_t_max, z_t_max)
-    );
-	//判断是否相交
-    if (t_in < t_out && t_out >= 0) return true;
-    return false;
+    float t_out = std::min(x_t_max, std::min(y_t_max, z_t_max));
+
+    return (t_in < t_out && t_out >= 0);
 }
 
 inline Bounds3 Union(const Bounds3& b1, const Bounds3& b2)
